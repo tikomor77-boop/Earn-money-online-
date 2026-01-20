@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EarnMoney BD - Member</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; text-align: center; }
+        .header { background: #27ae60; color: white; padding: 15px; font-size: 22px; font-weight: bold; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
+        .container { padding: 15px; max-width: 400px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .balance-card { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 25px; border-radius: 15px; }
+        input, select { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { width: 95%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; font-size: 16px; }
+        .btn-primary { background: #27ae60; color: white; }
+        .btn-task { background: #f39c12; color: white; font-size: 18px; }
+        .btn-withdraw { background: #e74c3c; color: white; }
+        #user-panel, #activation-panel { display: none; }
+        
+        /* রেফার লিঙ্ক স্টাইল */
+        .ref-section { background: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px dashed #27ae60; margin-top: 15px; }
+        .ref-link-text { font-size: 12px; color: #555; word-break: break-all; background: #fff; padding: 5px; display: block; margin-bottom: 10px; border: 1px solid #eee; }
+        .copy-btn { background: #34495e; color: white; padding: 5px 10px; font-size: 12px; width: auto; margin-top: 0; }
+    </style>
+</head>
+<body>
+
+<div class="header">EarnMoney BD</div>
+
+<div class="container">
+    <!-- লগইন সেকশন -->
+    <div id="auth-panel" class="card">
+        <h3>লগইন / রেজিস্ট্রেশন</h3>
+        <input type="email" id="email" placeholder="আপনার ইমেইল">
+        <input type="password" id="pass" placeholder="পাসওয়ার্ড">
+        <input type="text" id="ref-by" placeholder="রেফার কোড (অটো বসবে)">
+        <button class="btn-primary" onclick="register()">রেজিস্ট্রেশন (ফি ৫০ টাকা)</button>
+        <button style="background:#2980b9; color:white;" onclick="login()">লগইন করুন</button>
+    </div>
+
+    <!-- অ্যাকাউন্ট অ্যাক্টিভেশন প্যানেল -->
+    <div id="activation-panel" class="card">
+        <h3 style="color: #e74c3c;">অ্যাকাউন্ট অ্যাক্টিভ করুন</h3>
+        <p>আপনার অ্যাকাউন্টটি সচল করতে <b>৫০ টাকা</b> নিচে দেওয়া নাম্বারে পাঠিয়ে <b>Transaction ID</b> দিন।</p>
+        <div style="background: #fff3cd; padding: 10px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 15px;">
+            <p style="margin: 5px 0;">বিকাশ/নগদ (Personal):</p>
+            <h2 style="margin: 0; color: #27ae60;">01907619375</h2>
+        </div>
+        <input type="text" id="trx-id" placeholder="Transaction ID লিখুন">
+        <button class="btn-primary" onclick="sendActivation()">অ্যাক্টিভেশন রিকোয়েস্ট পাঠান</button>
+        <button onclick="logout()" style="background:#7f8c8d; color:white;">লগআউট</button>
+    </div>
+
+    <!-- ইউজার ড্যাশবোর্ড -->
+    <div id="user-panel">
+        <div class="balance-card">
+            <p>বর্তমান ব্যালেন্স</p>
+            <h2>৳ <span id="balance">0.00</span></h2>
+        </div>
+
+        <!-- রেফার লিঙ্ক সেকশন -->
+        <div class="card" style="margin-top: 20px;">
+            <h3>বন্ধুদের ইনভাইট করুন</h3>
+            <p style="font-size: 14px;">প্রতি সফল রেফারে পাবেন <b>৳ ৩০</b></p>
+            <div class="ref-section">
+                <span id="ref-link-display" class="ref-link-text">লোডিং...</span>
+                <button class="copy-btn" onclick="copyRefLink()">লিঙ্ক কপি করুন</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>ডেইলি টাস্ক</h3>
+            <p style="color: #e67e22; font-weight: bold;">ইনকাম করুন প্রতিদিন ৫০০-১০০০ টাকা!</p>
+            <p>টাস্ক সিস্টেম: <b>Coming Soon</b></p>
+            <button class="btn-task" disabled>টাস্ক সম্পন্ন করুন</button>
+        </div>
+
+        <div class="card">
+            <h3>টাকা উত্তোলন (Withdraw)</h3>
+            <p style="font-size: 12px; color: red;">* প্রতি উইথড্রতে ৫% ফি কাটা হবে।</p>
+            <select id="withdraw-amount">
+                <option value="100">৳ ১০০</option>
+                <option value="300">৳ ৩০০</option>
+                <option value="500">৳ ৫০০</option>
+                <option value="700">৳ ৭০০</option>
+                <option value="1000">৳ ১০০০</option>
+                <option value="1500">৳ ১৫০০</option>
+                <option value="2000">৳ ২০০০</option>
+            </select>
+            <input type="number" id="withdraw-phone" placeholder="বিকাশ/নগদ নাম্বার">
+            <button class="btn-withdraw" onclick="withdraw()">উইথড্র রিকোয়েস্ট</button>
+        </div>
+        <button onclick="logout()" style="background:#7f8c8d; color:white;">লগআউট করুন</button>
+    </div>
+</div>
+
+<script>
+    // Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyCJ4S87TQiWO2PfO1jZArF7K8B6kVu10Fo",
+        authDomain: "earnmoney-bd-d401a.firebaseapp.com",
+        projectId: "earnmoney-bd-d401a",
+        storageBucket: "earnmoney-bd-d401a.firebasestorage.app",
+        messagingSenderId: "744251567275",
+        appId: "1:744251567275:web:d956d68dfd0ed36c301bee"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // ইউআরএল থেকে রেফার কোড চেক করা
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+        if(refCode) {
+            document.getElementById('ref-by').value = refCode;
+        }
+    }
+
+    function register() {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('pass').value;
+        const refBy = document.getElementById('ref-by').value;
+        const myRef = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        if(!email || !pass) return alert("ইমেইল এবং পাসওয়ার্ড দিন");
+
+        auth.createUserWithEmailAndPassword(email, pass).then(res => {
+            db.ref('users/' + res.user.uid).set({
+                email: email,
+                balance: 0,
+                status: "Pending",
+                myReferCode: myRef,
+                referredBy: refBy || "None"
+            });
+            alert("রেজিস্ট্রেশন সফল! এখন অ্যাকাউন্ট অ্যাক্টিভ করুন।");
+        }).catch(err => alert(err.message));
+    }
+
+    function login() {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('pass').value;
+        auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
+    }
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            document.getElementById('auth-panel').style.display = 'none';
+            db.ref('users/' + user.uid).on('value', snap => {
+                const data = snap.val();
+                if (data.status === "Active") {
+                    document.getElementById('user-panel').style.display = 'block';
+                    document.getElementById('activation-panel').style.display = 'none';
+                    document.getElementById('balance').innerText = data.balance;
+                    
+                    // রেফার লিঙ্ক তৈরি
+                    const baseLink = window.location.href.split('?')[0];
+                    const fullLink = baseLink + "?ref=" + data.myReferCode;
+                    document.getElementById('ref-link-display').innerText = fullLink;
+                } else {
+                    document.getElementById('activation-panel').style.display = 'block';
+                    document.getElementById('user-panel').style.display = 'none';
+                }
+            });
+        } else {
+            document.getElementById('auth-panel').style.display = 'block';
+            document.getElementById('user-panel').style.display = 'none';
+            document.getElementById('activation-panel').style.display = 'none';
+        }
+    });
+
+    function copyRefLink() {
+        const link = document.getElementById('ref-link-display').innerText;
+        navigator.clipboard.writeText(link).then(() => {
+            alert("রেফার লিঙ্ক কপি হয়েছে!");
+        });
+    }
+
+    function sendActivation() {
+        const user = auth.currentUser;
+        const trx = document.getElementById('trx-id').value;
+        if(!trx) return alert("TrxID দিন");
+        db.ref('activation_requests/' + user.uid).set({
+            email: user.email,
+            trxID: trx,
+            uid: user.uid
+        }).then(() => alert("অনুরোধ পাঠানো হয়েছে। চেক করে একটিভ করা হবে।"));
+    }
+
+    function withdraw() {
+        const user = auth.currentUser;
+        const amount = parseInt(document.getElementById('withdraw-amount').value);
+        const phone = document.getElementById('withdraw-phone').value;
+        const fee = amount * 0.05;
+        const finalAmount = amount - fee;
+
+        if(!phone) return alert("নাম্বার দিন");
+
+        db.ref('users/' + user.uid + '/balance').once('value').then(snap => {
+            let currentBal = snap.val() || 0;
+            if (currentBal < amount) return alert("ব্যালেন্স পর্যাপ্ত নয়।");
+
+            db.ref('withdraws').push({
+                email: user.email,
+                uid: user.uid,
+                requestedAmount: amount,
+                adminWillPay: finalAmount,
+                phone: phone,
+                status: "Pending"
+            });
+            db.ref('users/' + user.uid).update({ balance: currentBal - amount });
+            alert(`সফল! ফি কেটে আপনি পাবেন ৳${finalAmount}`);
+        });
+    }
+
+    function logout() { auth.signOut(); }
+</script>
+</body>
+  </html>
