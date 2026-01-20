@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EarnMoney BD - Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; border-radius: 10px; margin-bottom: 30px; }
+        h2 { margin: 0; font-size: 24px; }
+        .section-title { background: #34495e; color: white; padding: 10px 15px; border-radius: 5px; margin-top: 30px; display: inline-block; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 15px; }
+        
+        /* কার্ড স্টাইল */
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid #27ae60; }
+        .card.withdraw { border-top-color: #e74c3c; }
+        
+        .card p { margin: 8px 0; color: #555; font-size: 15px; }
+        .card b { color: #2c3e50; }
+        .trx-id { background: #e8f8f5; color: #27ae60; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+        
+        .btn-group { margin-top: 15px; display: flex; gap: 10px; }
+        button { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        
+        .btn-approve { background: #27ae60; color: white; }
+        .btn-approve:hover { background: #219150; }
+        
+        .btn-delete { background: #e74c3c; color: white; }
+        .btn-delete:hover { background: #c0392b; }
+
+        #admin-auth { text-align: center; margin-top: 100px; }
+        #admin-auth input { padding: 10px; width: 250px; border-radius: 5px; border: 1px solid #ddd; }
+        #main-content { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- অ্যাডমিন লগইন (সুরক্ষার জন্য) -->
+    <div id="admin-auth">
+        <h2>এডমিন এক্সেস</h2>
+        <p>পাসওয়ার্ড দিয়ে প্রবেশ করুন</p>
+        <input type="password" id="admin-pass" placeholder="Password">
+        <button onclick="checkAccess()" style="width: 100px; background: #2c3e50; color: white;">Login</button>
+    </div>
+
+    <div id="main-content">
+        <div class="header">
+            <h2>EarnMoney BD - Management Panel</h2>
+            <p>আজকের সব রিকোয়েস্ট এখানে পাবেন</p>
+        </div>
+
+        <span class="section-title">অ্যাকাউন্ট অ্যাক্টিভেশন রিকোয়েস্ট (৫০ টাকা)</span>
+        <div id="activation-list" class="grid">লোডিং...</div>
+
+        <span class="section-title">উইথড্র রিকোয়েস্ট (৫% ফি প্রযোজ্য)</span>
+        <div id="withdraw-list" class="grid">লোডিং...</div>
+    </div>
+
+<script>
+    // Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyCJ4S87TQiWO2PfO1jZArF7K8B6kVu10Fo",
+        authDomain: "earnmoney-bd-d401a.firebaseapp.com",
+        projectId: "earnmoney-bd-d401a",
+        storageBucket: "earnmoney-bd-d401a.firebasestorage.app",
+        messagingSenderId: "744251567275",
+        appId: "1:744251567275:web:d956d68dfd0ed36c301bee"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // অ্যাডমিন পাসওয়ার্ড চেক (আপনি চাইলে পরিবর্তন করতে পারেন)
+    function checkAccess() {
+        const pass = document.getElementById('admin-pass').value;
+        if(pass === "admin123") { // আপনার পাসওয়ার্ড এখানে দিতে পারেন
+            document.getElementById('admin-auth').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+            loadData();
+        } else {
+            alert("ভুল পাসওয়ার্ড!");
+        }
+    }
+
+    function loadData() {
+        // ১. অ্যাকাউন্ট অ্যাক্টিভেশন লিস্ট
+        db.ref('activation_requests').on('value', snap => {
+            let html = "";
+            snap.forEach(child => {
+                let val = child.val();
+                html += `
+                <div class="card">
+                    <p><b>ইউজার:</b> ${val.email}</p>
+                    <p><b>TrxID:</b> <span class="trx-id">${val.trxID}</span></p>
+                    <div class="btn-group">
+                        <button class="btn-approve" onclick="approveUser('${val.uid}', '${child.key}')">অ্যাক্টিভ করুন ও বোনাস দিন</button>
+                        <button class="btn-delete" onclick="deleteReq('activation_requests', '${child.key}')">ডিলিট</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('activation-list').innerHTML = html || "<p style='color:#777;'>কোনো রিকোয়েস্ট নেই।</p>";
+        });
+
+        // ২. উইথড্র রিকোয়েস্ট লিস্ট
+        db.ref('withdraws').on('value', snap => {
+            let html = "";
+            snap.forEach(child => {
+                let val = child.val();
+                html += `
+                <div class="card withdraw">
+                    <p><b>ইউজার:</b> ${val.email}</p>
+                    <p><b>পেমেন্ট নাম্বার:</b> ${val.phone}</p>
+                    <p><b>উইথড্র পরিমাণ:</b> ৳${val.requestedAmount}</p>
+                    <p style="color: #e74c3c; font-weight: bold; font-size: 18px;">আপনি পাঠাবেন: ৳${val.adminWillPay}</p>
+                    <div class="btn-group">
+                        <button class="btn-approve" onclick="confirmPayment('${child.key}')">পেমেন্ট কমপ্লিট</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('withdraw-list').innerHTML = html || "<p style='color:#777;'>কোনো রিকোয়েস্ট নেই।</p>";
+        });
+    }
+
+    // ইউজার অ্যাক্টিভ করা এবং রেফার বোনাস দেওয়া
+    function approveUser(uid, requestKey) {
+        if(confirm("আপনি কি নিশ্চিত? এটি ইউজারকে অ্যাক্টিভ করবে এবং রেফারারকে ৩০ টাকা বোনাস দিবে।")) {
+            db.ref('users/' + uid).once('value').then(snap => {
+                const userData = snap.val();
+                const referrerCode = userData.referredBy;
+
+                // ১. ইউজার স্ট্যাটাস অ্যাক্টিভ করা
+                db.ref('users/' + uid).update({ status: "Active" });
+
+                // ২. রেফারার খুঁজে তাকে ৩০ টাকা দেওয়া
+                if(referrerCode && referrerCode !== "None") {
+                    db.ref('users').orderByChild('myReferCode').equalTo(referrerCode).once('value', refSnap => {
+                        refSnap.forEach(u => {
+                            let newBalance = (u.val().balance || 0) + 30;
+                            db.ref('users/' + u.key).update({ balance: newBalance });
+                        });
+                    });
+                }
+
+                // ৩. রিকোয়েস্ট ডিলিট করা
+                db.ref('activation_requests/' + requestKey).remove();
+                alert("সফলভাবে অ্যাক্টিভ হয়েছে!");
+            });
+        }
+    }
+
+    // উইথড্র পেমেন্ট কনফার্ম করা
+    function confirmPayment(key) {
+        if(confirm("আপনি কি টাকা পাঠিয়েছেন? কনফার্ম করলে লিস্ট থেকে মুছে যাবে।")) {
+            db.ref('withdraws/' + key).remove();
+        }
+    }
+
+    // জেনারেল ডিলিট ফাংশন
+    function deleteReq(path, key) {
+        if(confirm("ডিলিট করতে চান?")) {
+            db.ref(path + '/' + key).remove();
+        }
+    }
+</script>
+</body>
+</html>
